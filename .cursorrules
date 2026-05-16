@@ -13,6 +13,9 @@ Ensure consistency with App download flow and Backend referral/affiliate logic.
 
 ## Multi-Window Development
 This window is for **Website / Marketing**.
+Always start from `dev`. If local `dev` does not exist, create it from `origin/dev` or `origin/main`.
+Never implement daily development directly on `main`; `main` is staging/pre-release only.
+Production work must come from a GitHub Release / `v*` tag, not from an ad hoc branch.
 Coordinate landing page changes with App Onboarding and Backend referral systems.
 
 ## Task Completion Report
