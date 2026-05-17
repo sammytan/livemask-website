@@ -14,6 +14,7 @@ import type {
 } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+const MOCK_MODE = import.meta.env.VITE_API_MOCK_MODE !== "false" && import.meta.env.VITE_API_MOCK_MODE !== "0";
 
 const AUTH_ERRORS_MAP: Record<string, string> = {
   AUTH_INVALID_CREDENTIALS: "Invalid email or password. Please try again.",
@@ -35,7 +36,7 @@ class AuthApiClient {
   private accessToken: string | null = null;
   private refreshToken: string | null = null;
   private refreshPromise: Promise<boolean> | null = null;
-  private mockMode = true; // Use mock when Backend is not ready
+  private mockMode = MOCK_MODE; // Set VITE_API_MOCK_MODE=false to use real Backend
 
   setTokens(accessToken: string, refreshToken?: string) {
     this.accessToken = accessToken;
