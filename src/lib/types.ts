@@ -99,23 +99,23 @@ export const PERMISSIONS = {
 } as const;
 
 // --- Node Types (public-facing only, per TASK-WEBSITE-NODE-001) ---
+// Matches Backend node.NodePublic JSON shape exactly.
 
 export interface NodePublic {
-  node_id: string;
-  node_name: string;
-  status: string;           // "active" | "degraded" | "offline" | "maintenance"
-  load_score: number;       // 0.0 – 1.0, lower = less loaded
-  cpu_usage: number;        // percentage 0–100
-  memory_usage: number;     // percentage 0–100
-  active_connections: number;
-  degraded: boolean;
-  degraded_reason?: string;
-  last_heartbeat_at: string; // ISO 8601
+  id: string;               // Backend json:"id"
+  node_name: string;        // Backend json:"node_name,omitempty"
+  status: string;           // "active" | "pending_review" | "approved" | "disabled" | "suspended" | "rejected"
+  load_score: number;       // Backend json:"load_score" (int → number in JS)
+  cpu_usage?: number;       // Backend json:"cpu_usage,omitempty"
+  memory_usage?: number;    // Backend json:"memory_usage,omitempty"
+  active_connections?: number; // Backend json:"active_connections,omitempty"
+  degraded: boolean;        // Backend json:"degraded"
+  degraded_reason?: string; // Present on full Node but not NodePublic — safe to read if present
+  last_heartbeat_at?: string; // Backend json:"last_heartbeat_at,omitempty" (*time.Time → ISO string)
 }
 
 export interface NodeListResponse {
   nodes: NodePublic[];
-  total: number;
 }
 
 export interface RecommendedNodeResponse {

@@ -53,8 +53,8 @@ function PortalLayout({ children, title }: { children: React.ReactNode; title: s
 }
 
 function LoadStatus({ score }: { score: number }) {
-  if (score <= 0.33) return <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-xs">Low</Badge>;
-  if (score <= 0.66) return <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-xs">Medium</Badge>;
+  if (score <= 33) return <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-xs">Low</Badge>;
+  if (score <= 66) return <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-xs">Medium</Badge>;
   return <Badge variant="outline" className="bg-red-500/10 text-red-400 border-red-500/20 text-xs">High</Badge>;
 }
 
@@ -81,7 +81,7 @@ function NodeCard({ node }: { node: NodePublic }) {
             </div>
             <div>
               <p className="text-sm font-medium text-foreground">{node.node_name}</p>
-              <p className="text-xs text-muted-foreground font-mono">{node.node_id}</p>
+              <p className="text-xs text-muted-foreground font-mono">{node.id}</p>
             </div>
           </div>
           <StatusBadge status={node.status} degraded={node.degraded} />
@@ -91,11 +91,11 @@ function NodeCard({ node }: { node: NodePublic }) {
         <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">CPU</span>
-            <span className="text-foreground font-mono">{node.cpu_usage.toFixed(1)}%</span>
+            <span className="text-foreground font-mono">{node.cpu_usage?.toFixed(1) ?? "—"}%</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Memory</span>
-            <span className="text-foreground font-mono">{node.memory_usage.toFixed(1)}%</span>
+            <span className="text-foreground font-mono">{node.memory_usage?.toFixed(1) ?? "—"}%</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Load</span>
@@ -103,7 +103,7 @@ function NodeCard({ node }: { node: NodePublic }) {
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Connections</span>
-            <span className="text-foreground font-mono">{node.active_connections.toLocaleString()}</span>
+            <span className="text-foreground font-mono">{node.active_connections?.toLocaleString() ?? "—"}</span>
           </div>
         </div>
 
@@ -134,8 +134,8 @@ export function NodesPage() {
         authClient.getNodes(),
         authClient.getRecommendedNodes(),
       ]);
-      setAllNodes(all.nodes);
-      setRecommendedNodes(recommended.nodes);
+      setAllNodes(all.nodes ?? []);
+      setRecommendedNodes(recommended.nodes ?? []);
     } catch (err: any) {
       if (err?.code === "AUTH_TOKEN_EXPIRED" || err?.code === "AUTH_REFRESH_REVOKED") {
         setError("Session expired. Please login again.");
@@ -296,7 +296,7 @@ export function NodesPage() {
             </div>
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
               {recommendedNodes.map((node) => (
-                <NodeCard key={node.node_id} node={node} />
+                <NodeCard key={node.id} node={node} />
               ))}
             </div>
           </div>
@@ -311,7 +311,7 @@ export function NodesPage() {
           </div>
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             {allNodes.map((node) => (
-              <NodeCard key={node.node_id} node={node} />
+              <NodeCard key={node.id} node={node} />
             ))}
           </div>
         </div>
