@@ -5,7 +5,14 @@ import { AuthProvider } from "@/lib/auth";
 import { HomePage, PricingPage, DownloadPage, SecurityPage, FAQPage } from "@/pages/WebsitePage";
 import { LoginPage, RegisterPage, ForgotPasswordPage, VerifyEmailPage, AuthCallbackPage } from "@/pages/auth/AuthPages";
 import { AccountPage, BillingPage, MarketplacePage, PointsPage, SupportPage } from "@/pages/account/AccountPages";
+import { DevicesPage } from "@/pages/account/DevicesPage";
 import { NodesPage } from "@/pages/nodes/NodesPage";
+import {
+  BillingOverviewPage,
+  PlansPage,
+  BillingHistoryPage,
+  CheckoutPage,
+} from "@/pages/billing/BillingPages";
 
 const queryClient = new QueryClient();
 
@@ -27,10 +34,14 @@ const AppRoutes = () => (
 
     {/* User Portals */}
     <Route path="/account" element={<AccountPage />} />
+    <Route path="/account/devices" element={<DevicesPage />} />
     <Route path="/account/*" element={<AccountPage />} />
     <Route path="/nodes" element={<NodesPage />} />
     <Route path="/nodes/*" element={<NodesPage />} />
-    <Route path="/billing" element={<BillingPage />} />
+    <Route path="/billing" element={<BillingOverviewPage />} />
+    <Route path="/billing/plans" element={<PlansPage />} />
+    <Route path="/billing/history" element={<BillingHistoryPage />} />
+    <Route path="/billing/checkout" element={<CheckoutPage />} />
     <Route path="/billing/*" element={<BillingPage />} />
     <Route path="/market" element={<MarketplacePage />} />
     <Route path="/market/*" element={<MarketplacePage />} />

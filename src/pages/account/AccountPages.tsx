@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 
-function PortalLayout({ children, title }: { children: React.ReactNode; title: string }) {
+export function PortalLayout({ children, title }: { children: React.ReactNode; title: string }) {
   const { logout } = useAuth();
   const navigate = useNavigate();
 
@@ -35,6 +36,7 @@ function PortalLayout({ children, title }: { children: React.ReactNode; title: s
             <Link to="/account" className="text-muted-foreground hover:text-foreground">Account</Link>
             <Link to="/nodes" className="text-muted-foreground hover:text-foreground">Nodes</Link>
             <Link to="/billing" className="text-muted-foreground hover:text-foreground">Billing</Link>
+            <Link to="/account/devices" className="text-muted-foreground hover:text-foreground">Devices</Link>
             <Link to="/support" className="text-muted-foreground hover:text-foreground">Support</Link>
             <button
               onClick={handleLogout}
@@ -72,7 +74,7 @@ const placeholderEntries = [
     title: "Devices",
     description: "View and manage connected devices",
     icon: Smartphone,
-    route: "/account",
+    route: "/account/devices",
     color: "text-blue-500",
     bgColor: "bg-blue-500/10",
   },
@@ -103,6 +105,7 @@ const placeholderEntries = [
 ];
 
 export function AccountPage() {
+  const navigate = useNavigate();
   return (
     <PortalLayout title="Account">
       <div className="space-y-6">
@@ -127,7 +130,7 @@ export function AccountPage() {
           </TabsContent>
 
           <TabsContent value="devices">
-            <DevicesSection />
+            <DevicesSection navigateToDevices={() => navigate("/account/devices")} />
           </TabsContent>
         </Tabs>
 
@@ -246,7 +249,7 @@ function SecuritySection() {
   );
 }
 
-function DevicesSection() {
+function DevicesSection({ navigateToDevices }: { navigateToDevices: () => void }) {
   const devices = [
     { id: "dev_001", name: "iPhone 15 Pro", platform: "iOS 17.4", appVersion: "2.4.1", lastActive: "Now", trusted: true },
     { id: "dev_002", name: "MacBook Pro", platform: "macOS 14.3", appVersion: "2.4.1", lastActive: "2h ago", trusted: true },
@@ -257,9 +260,23 @@ function DevicesSection() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">3 of 5 device slots used</p>
-        <Button size="sm" className="bg-teal-600 hover:bg-teal-700 text-white text-xs h-7">
-          + Add Device
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-xs h-7"
+            onClick={navigateToDevices}
+          >
+            View All
+          </Button>
+          <Button
+            size="sm"
+            className="bg-teal-600 hover:bg-teal-700 text-white text-xs h-7"
+            onClick={navigateToDevices}
+          >
+            + Add Device
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-2">
@@ -292,73 +309,9 @@ function DevicesSection() {
 }
 
 export function BillingPage() {
-  return (
-    <PortalLayout title="Billing">
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Billing</h1>
-          <p className="text-sm text-muted-foreground">Manage your subscription and payment history</p>
-        </div>
-
-        <Card className="bg-card border-border border-teal-500/30">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <CreditCard className="h-5 w-5 text-teal-500" />
-                  <h3 className="text-lg font-medium text-foreground">Premium Monthly</h3>
-                </div>
-                <p className="text-sm text-muted-foreground">$9.99/month &bull; Renews May 30, 2026</p>
-                <div className="flex items-center gap-2 mt-2">
-                  <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-xs">Active</Badge>
-                  <span className="text-xs text-muted-foreground">5 devices &bull; All nodes &bull; WireGuard</span>
-                </div>
-              </div>
-              <div className="flex flex-col gap-2">
-                <Button size="sm" variant="outline" className="text-xs h-7">Change Plan</Button>
-                <Button size="sm" variant="outline" className="text-xs h-7 text-amber-400 border-amber-500/30">Cancel</Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div>
-          <h3 className="text-sm font-medium text-foreground mb-3">Available Plans</h3>
-          <div className="grid gap-4 md:grid-cols-3">
-            {[
-              { name: "Free", price: "$0", period: "/mo", features: ["1 device", "3 nodes", "Basic speed"], current: false },
-              { name: "Premium", price: "$9.99", period: "/mo", features: ["5 devices", "All nodes", "Max speed", "WireGuard"], current: true },
-              { name: "Enterprise", price: "$49.99", period: "/mo", features: ["Unlimited", "Dedicated nodes", "SLA", "Admin"], current: false },
-            ].map((plan) => (
-              <Card key={plan.name} className={`bg-card border-border ${plan.current ? "ring-1 ring-teal-500/30" : ""}`}>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium text-foreground">{plan.name}</h4>
-                    {plan.current && (
-                      <Badge variant="outline" className="bg-teal-500/10 text-teal-400 border-teal-500/20 text-xs">Current</Badge>
-                    )}
-                  </div>
-                  <p className="text-2xl font-bold text-foreground">
-                    {plan.price}<span className="text-sm text-muted-foreground font-normal">{plan.period}</span>
-                  </p>
-                  <div className="mt-3 space-y-1.5">
-                    {plan.features.map((f, i) => (
-                      <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <CheckCircle className="h-3 w-3 text-teal-500" />{f}
-                      </div>
-                    ))}
-                  </div>
-                  {!plan.current && (
-                    <Button size="sm" variant="outline" className="w-full mt-3 text-xs h-7">Select</Button>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </div>
-    </PortalLayout>
-  );
+  const navigate = useNavigate();
+  useEffect(() => { navigate("/billing", { replace: true }); }, [navigate]);
+  return null;
 }
 
 export function MarketplacePage() {

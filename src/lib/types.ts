@@ -122,6 +122,53 @@ export interface RecommendedNodeResponse {
   nodes: NodePublic[];
 }
 
+// --- Billing / Device Skeleton Types (TASK-WEBSITE-BILLING-001) ---
+// Draft types — final shape will be defined by Backend contract.
+// Named with "Draft" suffix to avoid conflict with future contract types.
+
+export type BillingPlanId = "free" | "premium_monthly" | "premium_annual" | "enterprise";
+
+export interface PlanDraft {
+  plan_id: BillingPlanId;
+  name: string;
+  price_monthly?: number;
+  price_annual?: number;
+  device_limit: number;
+  node_access: string;
+  features: string[];
+}
+
+export interface SubscriptionDraft {
+  plan_id: BillingPlanId;
+  status: "active" | "expired" | "paused" | "canceled" | "none";
+  current_period_start?: string;
+  current_period_end?: string;
+  cancel_at_period_end: boolean;
+  device_limit: number;
+  devices_used: number;
+}
+
+export type BillingHistoryStatus = "paid" | "pending" | "failed" | "refunded";
+
+export interface BillingHistoryItemDraft {
+  invoice_id: string;
+  plan_name: string;
+  amount: number;
+  currency: string;
+  status: BillingHistoryStatus;
+  paid_at?: string;
+  description: string;
+}
+
+export interface DeviceDraft {
+  id: string;
+  name: string;
+  platform: string;
+  app_version?: string;
+  last_active_at?: string;
+  trusted: boolean;
+}
+
 // Roles from contract
 export const ROLES = {
   USER: "user",

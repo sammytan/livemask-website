@@ -11,6 +11,10 @@ import type {
   NodePublic,
   NodeListResponse,
   RecommendedNodeResponse,
+  PlanDraft,
+  SubscriptionDraft,
+  BillingHistoryItemDraft,
+  DeviceDraft,
 } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
@@ -268,6 +272,48 @@ class AuthApiClient {
     },
   ];
 
+  private billingNotImplementedInRealMode<T>(): Promise<T> {
+    if (!this.mockMode) {
+      throw {
+        status: 501,
+        code: "NOT_IMPLEMENTED",
+        message: "Billing/Subscription API endpoint not yet available. Backend TASK required.",
+      } as ApiError;
+    }
+    // In mock mode, fall through
+    return undefined as unknown as Promise<T>;
+  }
+
+  // Mock billing/devices data
+  private mockSubscription: SubscriptionDraft = {
+    plan_id: "premium_monthly",
+    status: "active",
+    current_period_start: "2026-04-17T00:00:00Z",
+    current_period_end: "2026-05-17T23:59:59Z",
+    cancel_at_period_end: false,
+    device_limit: 5,
+    devices_used: 3,
+  };
+
+  private mockPlans: PlanDraft[] = [
+    { plan_id: "free", name: "Free", price_monthly: 0, device_limit: 1, node_access: "3 locations", features: ["1 device", "3 server locations", "Basic speed", "Community support"] },
+    { plan_id: "premium_monthly", name: "Premium Monthly", price_monthly: 9.99, device_limit: 5, node_access: "All 50+ servers", features: ["5 devices", "All 50+ servers", "Max speed", "WireGuard protocol", "24/7 support"] },
+    { plan_id: "premium_annual", name: "Premium Annual", price_monthly: 5.83, price_annual: 69.99, device_limit: 5, node_access: "All 50+ servers", features: ["5 devices", "All 50+ servers", "Max speed", "WireGuard protocol", "24/7 support", "2 months free"] },
+    { plan_id: "enterprise", name: "Enterprise", price_monthly: 49.99, device_limit: 999, node_access: "Dedicated", features: ["Unlimited devices", "Dedicated servers", "SLA guarantee", "Admin console", "Priority support"] },
+  ];
+
+  private mockBillingHistory: BillingHistoryItemDraft[] = [
+    { invoice_id: "INV-2026-001", plan_name: "Premium Monthly", amount: 9.99, currency: "USD", status: "paid", paid_at: "2026-04-17T10:00:00Z", description: "Premium Monthly — May 2026" },
+    { invoice_id: "INV-2026-002", plan_name: "Premium Monthly", amount: 9.99, currency: "USD", status: "paid", paid_at: "2026-03-17T10:00:00Z", description: "Premium Monthly — Apr 2026" },
+    { invoice_id: "INV-2026-003", plan_name: "Premium Monthly", amount: 9.99, currency: "USD", status: "paid", paid_at: "2026-02-17T10:00:00Z", description: "Premium Monthly — Mar 2026" },
+  ];
+
+  private mockDevices: DeviceDraft[] = [
+    { id: "dev_001", name: "iPhone 15 Pro", platform: "iOS 18.4", app_version: "2.4.1", last_active_at: new Date().toISOString(), trusted: true },
+    { id: "dev_002", name: "MacBook Pro", platform: "macOS 14.3", app_version: "2.4.1", last_active_at: new Date(Date.now() - 3600000).toISOString(), trusted: true },
+    { id: "dev_003", name: "iPad Air", platform: "iPadOS 17.4", app_version: "2.4.0", last_active_at: new Date(Date.now() - 86400000 * 2).toISOString(), trusted: false },
+  ];
+
   private async mockRequest<T>(path: string, options: RequestInit): Promise<T> {
     const body = options.body ? JSON.parse(options.body as string) : {};
 
@@ -387,6 +433,50 @@ class AuthApiClient {
         return { nodes: this.mockNodes, total: this.mockNodes.length } as T;
       }
 
+      // ── Billing / Device mock endpoints (TASK-WEBSITE-BILLING-001) ──────
+      case "/api/v1/billing/subscription": {
+        await this.billingNotImplementedInRealMode<T>();
+        return { ...this.mockSubscription } as T;
+      }
+      case "/api/v1/billing/plans": {
+        await this.billingNotImplementedInRealMode<T>();
+        return { plans: this.mockPlans } as T;
+      }
+      case "/api/v1/billing/history": {
+        await this.billingNotImplementedInRealMode<T>();
+        return { items: this.mockBillingHistory, total: this.mockBillingHistory.length } as T;
+      }
+      case "/api/v1/billing/checkout": {
+        await this.billingNotImplementedInRealMode<T>();
+        // Checkout mock — returns session url placeholder
+        // In mock mode, simulate a successful session creation
+        return {
+          session_id: "cs_mock_" + crypto.randomUUID().slice(0, 8),
+          url: "/billing/success",
+          expires_in: 1800,
+        } as T;
+      }
+      case "/api/v1/devices": {
+        await this.billingNotImplementedInRealMode<T>();
+        if (options.method === "DELETE" || options.method === "POST") {
+          if (options.method === "DELETE") {
+            const deviceId = (body as { device_id: string }).device_id;
+            this.mockDevices = this.mockDevices.filter((d) => d.id !== deviceId);
+            return { ok: true } as T;
+          }
+          // POST — add device skeleton
+          const newDevice: DeviceDraft = {
+            id: "dev_mock_" + crypto.randomUUID().slice(0, 6),
+            name: (body as { name: string }).name || "New Device",
+            platform: (body as { platform: string }).platform || "Unknown",
+            trusted: false,
+          };
+          this.mockDevices.push(newDevice);
+          return { device: newDevice } as T;
+        }
+        return { devices: this.mockDevices } as T;
+      }
+
       default:
         throw { status: 404, code: "NOT_FOUND", message: "Endpoint not found in mock" } as ApiError;
     }
@@ -440,6 +530,48 @@ class AuthApiClient {
 
   isAuthenticated(): boolean {
     return !!this.accessToken;
+  }
+
+  // ── Billing / Device API (skeleton — TASK-WEBSITE-BILLING-001) ──────────
+
+  async getSubscription(): Promise<SubscriptionDraft> {
+    return this.request<SubscriptionDraft>("/api/v1/billing/subscription", {}, true);
+  }
+
+  async getPlans(): Promise<{ plans: PlanDraft[] }> {
+    return this.request<{ plans: PlanDraft[] }>("/api/v1/billing/plans", {}, true);
+  }
+
+  async getBillingHistory(): Promise<{ items: BillingHistoryItemDraft[]; total: number }> {
+    return this.request<{ items: BillingHistoryItemDraft[]; total: number }>("/api/v1/billing/history", {}, true);
+  }
+
+  async createCheckoutSession(planId: string): Promise<{ session_id: string; url: string; expires_in: number }> {
+    return this.request<{ session_id: string; url: string; expires_in: number }>(
+      "/api/v1/billing/checkout",
+      { method: "POST", body: JSON.stringify({ plan_id: planId }) },
+      true
+    );
+  }
+
+  async getDevices(): Promise<{ devices: DeviceDraft[] }> {
+    return this.request<{ devices: DeviceDraft[] }>("/api/v1/devices", {}, true);
+  }
+
+  async revokeDevice(deviceId: string): Promise<{ ok: boolean }> {
+    return this.request<{ ok: boolean }>(
+      "/api/v1/devices",
+      { method: "DELETE", body: JSON.stringify({ device_id: deviceId }) },
+      true
+    );
+  }
+
+  async addDevice(name: string, platform: string): Promise<{ device: DeviceDraft }> {
+    return this.request<{ device: DeviceDraft }>(
+      "/api/v1/devices",
+      { method: "POST", body: JSON.stringify({ name, platform }) },
+      true
+    );
   }
 }
 
