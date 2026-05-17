@@ -41,6 +41,25 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function NotAvailableBox({ domain }: { domain: string }) {
+  return (
+    <Card className="bg-card border-border border-amber-500/20">
+      <CardContent className="p-8 text-center space-y-3">
+        <div className="rounded-full bg-amber-500/10 p-3 inline-flex mx-auto">
+          <Clock className="h-6 w-6 text-amber-500" />
+        </div>
+        <p className="text-sm text-foreground font-medium">{domain} API is not available yet</p>
+        <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+          This feature is currently under development. Please check back later.
+        </p>
+        <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-400 border-amber-500/20">
+          Coming Soon
+        </Badge>
+      </CardContent>
+    </Card>
+  );
+}
+
 function ErrorBox({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
     <Card className="bg-card border-border border-red-500/20">
@@ -63,26 +82,19 @@ export function BillingOverviewPage() {
   const [subscription, setSubscription] = useState<SubscriptionDraft | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notAvailable, setNotAvailable] = useState(false);
 
   const fetchSubscription = async () => {
     setLoading(true);
     setError(null);
+    setNotAvailable(false);
     try {
       const sub = await authClient.getSubscription();
       setSubscription(sub);
     } catch (err: unknown) {
       const apiErr = err as ApiError;
       if (apiErr.code === "NOT_IMPLEMENTED") {
-        // Backend not available — show mock fallback
-        setSubscription({
-          plan_id: "premium_monthly",
-          status: "active",
-          current_period_start: "2026-04-17T00:00:00Z",
-          current_period_end: "2026-05-17T23:59:59Z",
-          cancel_at_period_end: false,
-          device_limit: 5,
-          devices_used: 3,
-        });
+        setNotAvailable(true);
       } else {
         setError(getErrorMessage(apiErr));
       }
@@ -111,6 +123,14 @@ export function BillingOverviewPage() {
     return (
       <PortalLayout title="Billing">
         <ErrorBox message={error} onRetry={fetchSubscription} />
+      </PortalLayout>
+    );
+  }
+
+  if (notAvailable) {
+    return (
+      <PortalLayout title="Billing">
+        <NotAvailableBox domain="Billing" />
       </PortalLayout>
     );
   }
@@ -291,10 +311,12 @@ export function PlansPage() {
   const [currentPlanId, setCurrentPlanId] = useState<string>("premium_monthly");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notAvailable, setNotAvailable] = useState(false);
 
   const fetchPlans = async () => {
     setLoading(true);
     setError(null);
+    setNotAvailable(false);
     try {
       const [plansRes, subRes] = await Promise.all([
         authClient.getPlans(),
@@ -305,12 +327,7 @@ export function PlansPage() {
     } catch (err: unknown) {
       const apiErr = err as ApiError;
       if (apiErr.code === "NOT_IMPLEMENTED") {
-        setPlans([
-          { plan_id: "free", name: "Free", price_monthly: 0, device_limit: 1, node_access: "3 locations", features: ["1 device", "3 server locations", "Basic speed", "Community support"] },
-          { plan_id: "premium_monthly", name: "Premium Monthly", price_monthly: 9.99, device_limit: 5, node_access: "All 50+ servers", features: ["5 devices", "All 50+ servers", "Max speed", "WireGuard protocol", "24/7 support"] },
-          { plan_id: "premium_annual", name: "Premium Annual", price_monthly: 5.83, price_annual: 69.99, device_limit: 5, node_access: "All 50+ servers", features: ["5 devices", "All 50+ servers", "Max speed", "WireGuard protocol", "24/7 support", "2 months free"] },
-          { plan_id: "enterprise", name: "Enterprise", price_monthly: 49.99, device_limit: 999, node_access: "Dedicated", features: ["Unlimited devices", "Dedicated servers", "SLA guarantee", "Admin console", "Priority support"] },
-        ]);
+        setNotAvailable(true);
       } else {
         setError(getErrorMessage(apiErr));
       }
@@ -337,6 +354,14 @@ export function PlansPage() {
     return (
       <PortalLayout title="Plans">
         <ErrorBox message={error} onRetry={fetchPlans} />
+      </PortalLayout>
+    );
+  }
+
+  if (notAvailable) {
+    return (
+      <PortalLayout title="Plans">
+        <NotAvailableBox domain="Billing" />
       </PortalLayout>
     );
   }
@@ -424,21 +449,19 @@ export function BillingHistoryPage() {
   const [items, setItems] = useState<BillingHistoryItemDraft[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notAvailable, setNotAvailable] = useState(false);
 
   const fetchHistory = async () => {
     setLoading(true);
     setError(null);
+    setNotAvailable(false);
     try {
       const res = await authClient.getBillingHistory();
       setItems(res.items);
     } catch (err: unknown) {
       const apiErr = err as ApiError;
       if (apiErr.code === "NOT_IMPLEMENTED") {
-        setItems([
-          { invoice_id: "INV-2026-001", plan_name: "Premium Monthly", amount: 9.99, currency: "USD", status: "paid", paid_at: "2026-04-17T10:00:00Z", description: "Premium Monthly — May 2026" },
-          { invoice_id: "INV-2026-002", plan_name: "Premium Monthly", amount: 9.99, currency: "USD", status: "paid", paid_at: "2026-03-17T10:00:00Z", description: "Premium Monthly — Apr 2026" },
-          { invoice_id: "INV-2026-003", plan_name: "Premium Monthly", amount: 9.99, currency: "USD", status: "paid", paid_at: "2026-02-17T10:00:00Z", description: "Premium Monthly — Mar 2026" },
-        ]);
+        setNotAvailable(true);
       } else {
         setError(getErrorMessage(apiErr));
       }
@@ -485,6 +508,14 @@ export function BillingHistoryPage() {
     return (
       <PortalLayout title="Billing History">
         <ErrorBox message={error} onRetry={fetchHistory} />
+      </PortalLayout>
+    );
+  }
+
+  if (notAvailable) {
+    return (
+      <PortalLayout title="Billing History">
+        <NotAvailableBox domain="Billing" />
       </PortalLayout>
     );
   }
@@ -568,7 +599,10 @@ export function CheckoutPage() {
     ? "Free"
     : "Premium Monthly";
 
+  const [notAvailable, setNotAvailable] = useState(false);
+
   const handleProceed = async () => {
+    setNotAvailable(false);
     try {
       const session = await authClient.createCheckoutSession(planId);
       if (session.url) {
@@ -577,7 +611,7 @@ export function CheckoutPage() {
     } catch (err: unknown) {
       const apiErr = err as ApiError;
       if (apiErr.code === "NOT_IMPLEMENTED") {
-        // In non-mock mode, just show the placeholder message
+        setNotAvailable(true);
       }
     }
   };
@@ -596,6 +630,13 @@ export function CheckoutPage() {
             </div>
           </div>
 
+          {notAvailable ? (
+            <NotAvailableBox domain="Billing" />
+          ) : (
+            <></>
+          )}
+
+          {!notAvailable && (<>
           {/* Order Summary */}
           <Card className="bg-card border-border">
             <CardContent className="p-6 space-y-4">
@@ -652,6 +693,7 @@ export function CheckoutPage() {
           <p className="text-xs text-muted-foreground text-center">
             Your payment information is secure. No real payment is processed on this page.
           </p>
+          </>)}
         </div>
       </PortalLayout>
     </AuthGuard>

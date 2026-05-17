@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Smartphone, Monitor, Loader2, AlertCircle, ArrowLeft,
-  Trash2, Plus, Shield, CheckCircle, XCircle,
+  Trash2, Plus, Shield, CheckCircle, XCircle, Clock,
 } from "lucide-react";
 import { authClient, getErrorMessage } from "@/lib/api";
 import type { DeviceDraft, ApiError } from "@/lib/types";
@@ -56,28 +56,45 @@ function ErrorBox({ message, onRetry }: { message: string; onRetry?: () => void 
   );
 }
 
+function NotAvailableBox() {
+  return (
+    <Card className="bg-card border-border border-amber-500/20">
+      <CardContent className="p-8 text-center space-y-3">
+        <div className="rounded-full bg-amber-500/10 p-3 inline-flex mx-auto">
+          <Clock className="h-6 w-6 text-amber-500" />
+        </div>
+        <p className="text-sm text-foreground font-medium">Device API is not available yet</p>
+        <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+          This feature is currently under development. Please check back later.
+        </p>
+        <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-400 border-amber-500/20">
+          Coming Soon
+        </Badge>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Devices Page (/account/devices) ──────────────────────────────────
 export function DevicesPage() {
   const navigate = useNavigate();
   const [devices, setDevices] = useState<DeviceDraft[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notAvailable, setNotAvailable] = useState(false);
   const [revokingId, setRevokingId] = useState<string | null>(null);
 
   const fetchDevices = async () => {
     setLoading(true);
     setError(null);
+    setNotAvailable(false);
     try {
       const res = await authClient.getDevices();
       setDevices(res.devices);
     } catch (err: unknown) {
       const apiErr = err as ApiError;
       if (apiErr.code === "NOT_IMPLEMENTED") {
-        setDevices([
-          { id: "dev_001", name: "iPhone 15 Pro", platform: "iOS 18.4", app_version: "2.4.1", last_active_at: new Date().toISOString(), trusted: true },
-          { id: "dev_002", name: "MacBook Pro", platform: "macOS 14.3", app_version: "2.4.1", last_active_at: new Date(Date.now() - 3600000).toISOString(), trusted: true },
-          { id: "dev_003", name: "iPad Air", platform: "iPadOS 17.4", app_version: "2.4.0", last_active_at: new Date(Date.now() - 86400000 * 2).toISOString(), trusted: false },
-        ]);
+        setNotAvailable(true);
       } else {
         setError(getErrorMessage(apiErr));
       }
@@ -98,8 +115,7 @@ export function DevicesPage() {
     } catch (err: unknown) {
       const apiErr = err as ApiError;
       if (apiErr.code === "NOT_IMPLEMENTED") {
-        // Fallback: remove from local state
-        setDevices((prev) => prev.filter((d) => d.id !== deviceId));
+        setNotAvailable(true);
       } else {
         setError(getErrorMessage(apiErr));
       }
@@ -115,14 +131,7 @@ export function DevicesPage() {
     } catch (err: unknown) {
       const apiErr = err as ApiError;
       if (apiErr.code === "NOT_IMPLEMENTED") {
-        // Simulate adding a device in local state
-        const fakeDev: DeviceDraft = {
-          id: "dev_mock_" + Math.random().toString(36).slice(2, 8),
-          name: "New Device",
-          platform: "Unknown",
-          trusted: false,
-        };
-        setDevices((prev) => [...prev, fakeDev]);
+        setNotAvailable(true);
       } else {
         setError(getErrorMessage(apiErr));
       }
@@ -143,6 +152,14 @@ export function DevicesPage() {
     return (
       <PortalLayout title="Devices">
         <ErrorBox message={error} onRetry={fetchDevices} />
+      </PortalLayout>
+    );
+  }
+
+  if (notAvailable) {
+    return (
+      <PortalLayout title="Devices">
+        <NotAvailableBox />
       </PortalLayout>
     );
   }

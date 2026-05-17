@@ -1,10 +1,10 @@
 import { Toaster } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/lib/auth";
 import { HomePage, PricingPage, DownloadPage, SecurityPage, FAQPage } from "@/pages/WebsitePage";
 import { LoginPage, RegisterPage, ForgotPasswordPage, VerifyEmailPage, AuthCallbackPage } from "@/pages/auth/AuthPages";
-import { AccountPage, BillingPage, MarketplacePage, PointsPage, SupportPage } from "@/pages/account/AccountPages";
+import { AccountPage, MarketplacePage, PointsPage, SupportPage } from "@/pages/account/AccountPages";
 import { DevicesPage } from "@/pages/account/DevicesPage";
 import { NodesPage } from "@/pages/nodes/NodesPage";
 import {
@@ -42,7 +42,7 @@ const AppRoutes = () => (
     <Route path="/billing/plans" element={<PlansPage />} />
     <Route path="/billing/history" element={<BillingHistoryPage />} />
     <Route path="/billing/checkout" element={<CheckoutPage />} />
-    <Route path="/billing/*" element={<BillingPage />} />
+    <Route path="/billing/*" element={<Navigate to="/billing" replace />} />
     <Route path="/market" element={<MarketplacePage />} />
     <Route path="/market/*" element={<MarketplacePage />} />
     <Route path="/points" element={<PointsPage />} />

@@ -272,18 +272,6 @@ class AuthApiClient {
     },
   ];
 
-  private billingNotImplementedInRealMode<T>(): Promise<T> {
-    if (!this.mockMode) {
-      throw {
-        status: 501,
-        code: "NOT_IMPLEMENTED",
-        message: "Billing/Subscription API endpoint not yet available. Backend TASK required.",
-      } as ApiError;
-    }
-    // In mock mode, fall through
-    return undefined as unknown as Promise<T>;
-  }
-
   // Mock billing/devices data
   private mockSubscription: SubscriptionDraft = {
     plan_id: "premium_monthly",
@@ -435,19 +423,15 @@ class AuthApiClient {
 
       // ── Billing / Device mock endpoints (TASK-WEBSITE-BILLING-001) ──────
       case "/api/v1/billing/subscription": {
-        await this.billingNotImplementedInRealMode<T>();
         return { ...this.mockSubscription } as T;
       }
       case "/api/v1/billing/plans": {
-        await this.billingNotImplementedInRealMode<T>();
         return { plans: this.mockPlans } as T;
       }
       case "/api/v1/billing/history": {
-        await this.billingNotImplementedInRealMode<T>();
         return { items: this.mockBillingHistory, total: this.mockBillingHistory.length } as T;
       }
       case "/api/v1/billing/checkout": {
-        await this.billingNotImplementedInRealMode<T>();
         // Checkout mock — returns session url placeholder
         // In mock mode, simulate a successful session creation
         return {
@@ -457,7 +441,6 @@ class AuthApiClient {
         } as T;
       }
       case "/api/v1/devices": {
-        await this.billingNotImplementedInRealMode<T>();
         if (options.method === "DELETE" || options.method === "POST") {
           if (options.method === "DELETE") {
             const deviceId = (body as { device_id: string }).device_id;
@@ -534,19 +517,27 @@ class AuthApiClient {
 
   // ── Billing / Device API (skeleton — TASK-WEBSITE-BILLING-001) ──────────
 
+  // ── Billing / Device API (skeleton — TASK-WEBSITE-BILLING-001) ──────────
+  // Real-mode guard: until Backend endpoints exist, throw a friendly message.
+  // Mock mode delegates to mockRequest for local preview.
+
   async getSubscription(): Promise<SubscriptionDraft> {
+    if (!this.mockMode) throw this.notImplementedError("Billing");
     return this.request<SubscriptionDraft>("/api/v1/billing/subscription", {}, true);
   }
 
   async getPlans(): Promise<{ plans: PlanDraft[] }> {
+    if (!this.mockMode) throw this.notImplementedError("Billing");
     return this.request<{ plans: PlanDraft[] }>("/api/v1/billing/plans", {}, true);
   }
 
   async getBillingHistory(): Promise<{ items: BillingHistoryItemDraft[]; total: number }> {
+    if (!this.mockMode) throw this.notImplementedError("Billing");
     return this.request<{ items: BillingHistoryItemDraft[]; total: number }>("/api/v1/billing/history", {}, true);
   }
 
   async createCheckoutSession(planId: string): Promise<{ session_id: string; url: string; expires_in: number }> {
+    if (!this.mockMode) throw this.notImplementedError("Billing");
     return this.request<{ session_id: string; url: string; expires_in: number }>(
       "/api/v1/billing/checkout",
       { method: "POST", body: JSON.stringify({ plan_id: planId }) },
@@ -555,10 +546,12 @@ class AuthApiClient {
   }
 
   async getDevices(): Promise<{ devices: DeviceDraft[] }> {
+    if (!this.mockMode) throw this.notImplementedError("Device");
     return this.request<{ devices: DeviceDraft[] }>("/api/v1/devices", {}, true);
   }
 
   async revokeDevice(deviceId: string): Promise<{ ok: boolean }> {
+    if (!this.mockMode) throw this.notImplementedError("Device");
     return this.request<{ ok: boolean }>(
       "/api/v1/devices",
       { method: "DELETE", body: JSON.stringify({ device_id: deviceId }) },
@@ -567,11 +560,16 @@ class AuthApiClient {
   }
 
   async addDevice(name: string, platform: string): Promise<{ device: DeviceDraft }> {
+    if (!this.mockMode) throw this.notImplementedError("Device");
     return this.request<{ device: DeviceDraft }>(
       "/api/v1/devices",
       { method: "POST", body: JSON.stringify({ name, platform }) },
       true
     );
+  }
+
+  private notImplementedError(domain: string): ApiError {
+    return { status: 501, code: "NOT_IMPLEMENTED", message: `${domain} API is not available yet. Please check back later.` };
   }
 }
 

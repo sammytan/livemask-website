@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -306,12 +305,6 @@ function DevicesSection({ navigateToDevices }: { navigateToDevices: () => void }
       </div>
     </div>
   );
-}
-
-export function BillingPage() {
-  const navigate = useNavigate();
-  useEffect(() => { navigate("/billing", { replace: true }); }, [navigate]);
-  return null;
 }
 
 export function MarketplacePage() {
