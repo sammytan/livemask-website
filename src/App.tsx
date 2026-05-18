@@ -1,6 +1,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "@/lib/auth";
 import { HomePage, PricingPage, DownloadPage, SecurityPage, FAQPage } from "@/pages/WebsitePage";
 import { LoginPage, RegisterPage, ForgotPasswordPage, VerifyEmailPage, AuthCallbackPage } from "@/pages/auth/AuthPages";
@@ -13,6 +14,7 @@ import {
   BillingHistoryPage,
   CheckoutPage,
 } from "@/pages/billing/BillingPages";
+import { BlogListPage, BlogArticlePage, BlogCategoryPage, BlogTagPage } from "@/pages/blog";
 
 const queryClient = new QueryClient();
 
@@ -24,6 +26,12 @@ const AppRoutes = () => (
     <Route path="/download" element={<DownloadPage />} />
     <Route path="/security" element={<SecurityPage />} />
     <Route path="/faq" element={<FAQPage />} />
+
+    {/* Blog */}
+    <Route path="/blog" element={<BlogListPage />} />
+    <Route path="/blog/category/:category" element={<BlogCategoryPage />} />
+    <Route path="/blog/tag/:tag" element={<BlogTagPage />} />
+    <Route path="/blog/:slug" element={<BlogArticlePage />} />
 
     {/* Auth */}
     <Route path="/login" element={<LoginPage />} />
@@ -53,14 +61,16 @@ const AppRoutes = () => (
 );
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <Toaster />
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
-    </AuthProvider>
-  </QueryClientProvider>
+  <HelmetProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <Toaster />
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </AuthProvider>
+    </QueryClientProvider>
+  </HelmetProvider>
 );
 
 export default App;
