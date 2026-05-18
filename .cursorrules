@@ -24,6 +24,23 @@ No files changed.
 Marketing pages, SEO, onboarding landing pages.
 Ensure consistency with App download flow and Backend referral/affiliate logic.
 
+## API Client Rule
+Business API files must not call `fetch()` directly.
+
+Use the shared Website HTTP client instead:
+- Use `publicFetch` for public endpoints such as Blog, sitemap, RSS, marketing,
+  and SEO crawler-safe content.
+- Use `authFetch` for protected user endpoints such as account, nodes, billing,
+  devices, subscription, checkout, and any logged-in portal data.
+- Only `auth-api.ts` and the shared HTTP client file may call raw `fetch()` for
+  auth bootstrap, refresh, logout, public transport, or low-level request
+  handling.
+
+All protected Website calls must automatically attach
+`Authorization: Bearer <access_token>`, retry once after a successful refresh on
+401, and must never log tokens or place tokens in URLs/query strings. Public
+Blog/SEO calls must not depend on login state or require Authorization.
+
 ## Multi-Window Development
 This window is for **Website / Marketing**.
 You may use `gh` commands to operate GitHub API, Issues, Actions, `workflow_dispatch`, and `repository_dispatch`.
