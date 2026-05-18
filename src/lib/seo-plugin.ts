@@ -201,6 +201,47 @@ ${items}
 </rss>`;
 }
 
+function generateAllXml(): { sitemap: string; rss: string } {
+  const articles = getMockArticles();
+
+  const staticPages: SitemapUrl[] = [
+    { loc: `${SITE_URL}/`, lastmod: "2026-01-01T00:00:00Z", changefreq: "monthly", priority: 1.0 },
+    { loc: `${SITE_URL}/pricing`, lastmod: "2026-01-01T00:00:00Z", changefreq: "monthly", priority: 0.8 },
+    { loc: `${SITE_URL}/download`, lastmod: "2026-01-01T00:00:00Z", changefreq: "monthly", priority: 0.7 },
+    { loc: `${SITE_URL}/security`, lastmod: "2026-01-01T00:00:00Z", changefreq: "monthly", priority: 0.6 },
+    { loc: `${SITE_URL}/faq`, lastmod: "2026-01-01T00:00:00Z", changefreq: "monthly", priority: 0.5 },
+    { loc: `${SITE_URL}/blog`, lastmod: articles[0]?.updated_at || "2026-01-01T00:00:00Z", changefreq: "daily", priority: 0.9 },
+  ];
+
+  const blogUrls: SitemapUrl[] = articles.map((a) => ({
+    loc: `${SITE_URL}/blog/${a.slug}`,
+    lastmod: a.updated_at,
+    changefreq: "weekly" as const,
+    priority: 0.8,
+  }));
+
+  const sitemapXml = generateSitemapXml([...staticPages, ...blogUrls]);
+
+  const rssItems: RssItem[] = articles.map((a) => ({
+    title: a.title,
+    link: `${SITE_URL}/blog/${a.slug}`,
+    description: a.excerpt,
+    author: a.author_name,
+    pub_date: a.published_at,
+    guid: `${SITE_URL}/blog/${a.slug}`,
+  }));
+
+  const rssXml = generateRssXml({
+    title: "LiveMask Blog",
+    description: "Latest articles about VPN technology, online privacy, and security tips from LiveMask.",
+    link: `${SITE_URL}/rss.xml`,
+    language: "en-us",
+    items: rssItems,
+  });
+
+  return { sitemap: sitemapXml, rss: rssXml };
+}
+
 export function seoPlugin(): Plugin {
   let config: ResolvedConfig;
 
@@ -209,83 +250,26 @@ export function seoPlugin(): Plugin {
     configResolved(resolvedConfig) {
       config = resolvedConfig;
     },
+    configureServer(server) {
+      server.middlewares.use("/sitemap.xml", (_req, res) => {
+        const { sitemap } = generateAllXml();
+        res.setHeader("Content-Type", "application/xml");
+        res.end(sitemap);
+      });
+      server.middlewares.use("/rss.xml", (_req, res) => {
+        const { rss } = generateAllXml();
+        res.setHeader("Content-Type", "application/rss+xml");
+        res.end(rss);
+      });
+    },
     closeBundle() {
       const outDir = config.build.outDir;
-      const articles = getMockArticles();
-
-      // Sitemap entries: static pages + blog articles
-      const staticPages: SitemapUrl[] = [
-        {
-          loc: `${SITE_URL}/`,
-          lastmod: "2026-01-01T00:00:00Z",
-          changefreq: "monthly",
-          priority: 1.0,
-        },
-        {
-          loc: `${SITE_URL}/pricing`,
-          lastmod: "2026-01-01T00:00:00Z",
-          changefreq: "monthly",
-          priority: 0.8,
-        },
-        {
-          loc: `${SITE_URL}/download`,
-          lastmod: "2026-01-01T00:00:00Z",
-          changefreq: "monthly",
-          priority: 0.7,
-        },
-        {
-          loc: `${SITE_URL}/security`,
-          lastmod: "2026-01-01T00:00:00Z",
-          changefreq: "monthly",
-          priority: 0.6,
-        },
-        {
-          loc: `${SITE_URL}/faq`,
-          lastmod: "2026-01-01T00:00:00Z",
-          changefreq: "monthly",
-          priority: 0.5,
-        },
-        {
-          loc: `${SITE_URL}/blog`,
-          lastmod: articles[0]?.updated_at || "2026-01-01T00:00:00Z",
-          changefreq: "daily",
-          priority: 0.9,
-        },
-      ];
-
-      const blogUrls: SitemapUrl[] = articles.map((a) => ({
-        loc: `${SITE_URL}/blog/${a.slug}`,
-        lastmod: a.updated_at,
-        changefreq: "weekly" as const,
-        priority: 0.8,
-      }));
-
-      const sitemapUrls = [...staticPages, ...blogUrls];
-      const sitemapXml = generateSitemapXml(sitemapUrls);
+      const { sitemap: sitemapXml, rss: rssXml } = generateAllXml();
 
       const sitemapPath = path.resolve(outDir, "sitemap.xml");
       fs.mkdirSync(path.dirname(sitemapPath), { recursive: true });
       fs.writeFileSync(sitemapPath, sitemapXml, "utf-8");
       console.log(`✓ Generated sitemap.xml at ${sitemapPath}`);
-
-      // RSS feed
-      const rssItems: RssItem[] = articles.map((a) => ({
-        title: a.title,
-        link: `${SITE_URL}/blog/${a.slug}`,
-        description: a.excerpt,
-        author: a.author_name,
-        pub_date: a.published_at,
-        guid: `${SITE_URL}/blog/${a.slug}`,
-      }));
-
-      const rssXml = generateRssXml({
-        title: "LiveMask Blog",
-        description:
-          "Latest articles about VPN technology, online privacy, and security tips from LiveMask.",
-        link: `${SITE_URL}/rss.xml`,
-        language: "en-us",
-        items: rssItems,
-      });
 
       const rssPath = path.resolve(outDir, "rss.xml");
       fs.writeFileSync(rssPath, rssXml, "utf-8");

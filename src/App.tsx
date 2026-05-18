@@ -1,9 +1,14 @@
 import { Toaster } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "@/lib/auth";
 import { HomePage, PricingPage, DownloadPage, SecurityPage, FAQPage } from "@/pages/WebsitePage";
+import {
+  BlogListPage,
+  BlogArticlePage,
+  BlogCategoryPage,
+  BlogTagPage,
+} from "@/pages/blog";
 import { LoginPage, RegisterPage, ForgotPasswordPage, VerifyEmailPage, AuthCallbackPage } from "@/pages/auth/AuthPages";
 import { AccountPage, MarketplacePage, PointsPage, SupportPage } from "@/pages/account/AccountPages";
 import { DevicesPage } from "@/pages/account/DevicesPage";
@@ -14,7 +19,6 @@ import {
   BillingHistoryPage,
   CheckoutPage,
 } from "@/pages/billing/BillingPages";
-import { BlogListPage, BlogArticlePage, BlogCategoryPage, BlogTagPage } from "@/pages/blog";
 
 const queryClient = new QueryClient();
 
@@ -61,16 +65,14 @@ const AppRoutes = () => (
 );
 
 const App = () => (
-  <HelmetProvider>
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Toaster />
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
-      </AuthProvider>
-    </QueryClientProvider>
-  </HelmetProvider>
+  <QueryClientProvider client={queryClient}>
+    <AuthProvider>
+      <Toaster />
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
+    </AuthProvider>
+  </QueryClientProvider>
 );
 
 export default App;
