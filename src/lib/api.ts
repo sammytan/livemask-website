@@ -17,6 +17,7 @@ import type {
   DeviceView,
   DevicesResponse,
 } from "./types";
+import { configureAuthProvider, authenticatedFetch } from "./authenticated-fetch";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
 const MOCK_MODE = import.meta.env.VITE_API_MOCK_MODE !== "false" && import.meta.env.VITE_API_MOCK_MODE !== "0";
@@ -46,6 +47,15 @@ class AuthApiClient {
   private refreshPromise: Promise<boolean> | null = null;
   private mockMode = MOCK_MODE;
 
+  constructor() {
+    // Wire up the authenticatedFetch utility to this client's token store
+    // and refresh mechanism so it can read tokens and retry on 401.
+    configureAuthProvider(
+      () => this.accessToken,
+      () => this.tryRefresh(),
+    );
+  }
+
   setTokens(accessToken: string, refreshToken?: string) {
     this.accessToken = accessToken;
     if (refreshToken) this.refreshToken = refreshToken;
@@ -56,10 +66,18 @@ class AuthApiClient {
     this.refreshToken = null;
   }
 
+  /**
+   * Unauthenticated request — used only for public endpoints:
+   *   POST /api/v1/auth/register
+   *   POST /api/v1/auth/login
+   *   POST /api/v1/auth/refresh
+   *
+   * These endpoints do not require a Bearer token.
+   * 401 retry / token refresh is NOT performed here.
+   */
   private async request<T>(
     path: string,
     options: RequestInit = {},
-    authenticated = false
   ): Promise<T> {
     if (this.mockMode) {
       return this.mockRequest<T>(path, options);
@@ -70,49 +88,37 @@ class AuthApiClient {
       ...(options.headers as Record<string, string>),
     };
 
-    if (authenticated && this.accessToken) {
-      headers["Authorization"] = `Bearer ${this.accessToken}`;
-    }
-
     const response = await fetch(`${API_BASE}${path}`, {
       ...options,
       headers,
     });
-
-    if (response.status === 401) {
-      const errorBody = await response.json().catch(() => ({}));
-      // Unwrap nested Backend "error" field (billing endpoints use {error:{code,message}})
-      const flatBody = errorBody.error || errorBody;
-      if (flatBody.code === "AUTH_TOKEN_EXPIRED") {
-        const refreshed = await this.tryRefresh();
-        if (refreshed) {
-          headers["Authorization"] = `Bearer ${this.accessToken}`;
-          const retryResponse = await fetch(`${API_BASE}${path}`, {
-            ...options,
-            headers,
-          });
-          if (!retryResponse.ok) {
-            const retryErrorBody = await retryResponse.json().catch(() => ({}));
-            const flatRetry = retryErrorBody.error || retryErrorBody;
-            throw { status: retryResponse.status, ...flatRetry } as ApiError;
-          }
-          return retryResponse.json();
-        }
-      }
-      throw { status: response.status, ...flatBody } as ApiError;
-    }
 
     if (!response.ok) {
       const errorBody = await response.json().catch(() => ({
         code: "UNKNOWN",
         message: response.statusText,
       }));
-      // Unwrap nested Backend "error" field (billing endpoints use {error:{code,message}})
       const flatBody = errorBody.error || errorBody;
       throw { status: response.status, ...flatBody } as ApiError;
     }
 
     return response.json();
+  }
+
+  /**
+   * Authenticated request — used for all protected endpoints.
+   * In mock mode delegates to mockRequest; in real mode uses
+   * the unified authenticatedFetch which handles Bearer token,
+   * 401 refresh + retry, and structured error parsing.
+   */
+  private async authRequest<T>(
+    path: string,
+    options: RequestInit = {},
+  ): Promise<T> {
+    if (this.mockMode) {
+      return this.mockRequest<T>(path, options);
+    }
+    return authenticatedFetch<T>(path, options);
   }
 
   private async tryRefresh(): Promise<boolean> {
@@ -499,20 +505,20 @@ class AuthApiClient {
   }
 
   async logout(): Promise<void> {
-    await this.request("/api/v1/auth/logout", { method: "POST" }, true);
+    await this.authRequest("/api/v1/auth/logout", { method: "POST" });
     this.clearTokens();
   }
 
   async getMe(): Promise<User> {
-    return this.request<User>("/api/v1/me", {}, true);
+    return this.authRequest<User>("/api/v1/me", {});
   }
 
   async getNodes(): Promise<NodeListResponse> {
-    return this.request<NodeListResponse>("/api/v1/nodes", {}, true);
+    return this.authRequest<NodeListResponse>("/api/v1/nodes", {});
   }
 
   async getRecommendedNodes(): Promise<RecommendedNodeResponse> {
-    return this.request<RecommendedNodeResponse>("/api/v1/nodes/recommended", {}, true);
+    return this.authRequest<RecommendedNodeResponse>("/api/v1/nodes/recommended", {});
   }
 
   getAccessToken(): string | null {
@@ -527,45 +533,42 @@ class AuthApiClient {
   // Real mode calls Backend; mock mode uses mockRequest.
 
   async getSubscription(): Promise<SubscriptionView> {
-    const res = await this.request<{ subscription: SubscriptionView }>("/api/v1/billing/subscription", {}, true);
+    const res = await this.authRequest<{ subscription: SubscriptionView }>("/api/v1/billing/subscription", {});
     return res.subscription ?? { plan_id: "free", status: "active", cancel_at_period_end: false, device_limit: 1, device_used: 0 };
   }
 
   async getPlans(): Promise<{ plans: Plan[] }> {
-    return this.request<{ plans: Plan[] }>("/api/v1/billing/plans", {}, true);
+    return this.authRequest<{ plans: Plan[] }>("/api/v1/billing/plans", {});
   }
 
   async getBillingHistory(): Promise<{ items: BillingHistoryItem[] }> {
-    return this.request<{ items: BillingHistoryItem[] }>("/api/v1/billing/history", {}, true);
+    return this.authRequest<{ items: BillingHistoryItem[] }>("/api/v1/billing/history", {});
   }
 
   async createCheckoutSession(planId: string): Promise<{ checkout_id: string; status: string; redirect_url: string | null }> {
-    return this.request<{ checkout_id: string; status: string; redirect_url: string | null }>(
+    return this.authRequest<{ checkout_id: string; status: string; redirect_url: string | null }>(
       "/api/v1/billing/checkout",
       { method: "POST", body: JSON.stringify({ plan_id: planId, payment_method: "mock" }) },
-      true
     );
   }
 
   async getDevices(): Promise<DevicesResponse> {
-    return this.request<DevicesResponse>("/api/v1/devices", {}, true);
+    return this.authRequest<DevicesResponse>("/api/v1/devices", {});
   }
 
   async revokeDevice(deviceId: string): Promise<{ ok: boolean }> {
     // Backend: DELETE /api/v1/devices/{device_id}
-    return this.request<{ ok: boolean }>(
+    return this.authRequest<{ ok: boolean }>(
       `/api/v1/devices/${deviceId}`,
       { method: "DELETE" },
-      true
     );
   }
 
   async addDevice(deviceName: string, platform: string): Promise<DeviceView> {
     // Backend returns HTTP 201 with DeviceView body (not wrapped in {device: ...})
-    return this.request<DeviceView>(
+    return this.authRequest<DeviceView>(
       "/api/v1/devices",
       { method: "POST", body: JSON.stringify({ device_name: deviceName, platform }) },
-      true
     );
   }
 }
