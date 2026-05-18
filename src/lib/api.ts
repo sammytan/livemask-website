@@ -17,7 +17,7 @@ import type {
   DeviceView,
   DevicesResponse,
 } from "./types";
-import { configureAuthProvider, authenticatedFetch } from "./authenticated-fetch";
+import { configureAuthProvider, authFetch, publicFetch } from "./http-client";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
 const MOCK_MODE = import.meta.env.VITE_API_MOCK_MODE !== "false" && import.meta.env.VITE_API_MOCK_MODE !== "0";
@@ -35,6 +35,7 @@ const AUTH_ERRORS_MAP: Record<string, string> = {
   DEVICE_LIMIT_EXCEEDED: "Device limit reached. Please remove a device before adding a new one.",
   BILLING_PLAN_NOT_FOUND: "Selected plan was not found. Please try again.",
   BILLING_CHECKOUT_NOT_SUPPORTED: "Checkout is not yet supported. Payment integration coming soon.",
+  AUTH_SESSION_EXPIRED: "Session expired. Please login again.",
 };
 
 function getErrorMessage(error: ApiError): string {
@@ -48,8 +49,7 @@ class AuthApiClient {
   private mockMode = MOCK_MODE;
 
   constructor() {
-    // Wire up the authenticatedFetch utility to this client's token store
-    // and refresh mechanism so it can read tokens and retry on 401.
+    // Register token provider with the unified HTTP client layer.
     configureAuthProvider(
       () => this.accessToken,
       () => this.tryRefresh(),
@@ -67,13 +67,12 @@ class AuthApiClient {
   }
 
   /**
-   * Unauthenticated request — used only for public endpoints:
+   * Unauthenticated request — used only for public auth endpoints:
    *   POST /api/v1/auth/register
    *   POST /api/v1/auth/login
    *   POST /api/v1/auth/refresh
    *
-   * These endpoints do not require a Bearer token.
-   * 401 retry / token refresh is NOT performed here.
+   * Uses publicFetch which never attaches an Authorization header.
    */
   private async request<T>(
     path: string,
@@ -82,34 +81,13 @@ class AuthApiClient {
     if (this.mockMode) {
       return this.mockRequest<T>(path, options);
     }
-
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      ...(options.headers as Record<string, string>),
-    };
-
-    const response = await fetch(`${API_BASE}${path}`, {
-      ...options,
-      headers,
-    });
-
-    if (!response.ok) {
-      const errorBody = await response.json().catch(() => ({
-        code: "UNKNOWN",
-        message: response.statusText,
-      }));
-      const flatBody = errorBody.error || errorBody;
-      throw { status: response.status, ...flatBody } as ApiError;
-    }
-
-    return response.json();
+    return publicFetch<T>(path, options);
   }
 
   /**
    * Authenticated request — used for all protected endpoints.
-   * In mock mode delegates to mockRequest; in real mode uses
-   * the unified authenticatedFetch which handles Bearer token,
-   * 401 refresh + retry, and structured error parsing.
+   * In mock mode delegates to mockRequest; in real mode uses authFetch
+   * which handles Bearer token, 401 refresh + retry, and structured error parsing.
    */
   private async authRequest<T>(
     path: string,
@@ -118,7 +96,7 @@ class AuthApiClient {
     if (this.mockMode) {
       return this.mockRequest<T>(path, options);
     }
-    return authenticatedFetch<T>(path, options);
+    return authFetch<T>(path, options);
   }
 
   private async tryRefresh(): Promise<boolean> {
@@ -530,7 +508,6 @@ class AuthApiClient {
   }
 
   // ── Billing / Device API ───────────────────────────────────────────
-  // Real mode calls Backend; mock mode uses mockRequest.
 
   async getSubscription(): Promise<SubscriptionView> {
     const res = await this.authRequest<{ subscription: SubscriptionView }>("/api/v1/billing/subscription", {});
@@ -557,7 +534,6 @@ class AuthApiClient {
   }
 
   async revokeDevice(deviceId: string): Promise<{ ok: boolean }> {
-    // Backend: DELETE /api/v1/devices/{device_id}
     return this.authRequest<{ ok: boolean }>(
       `/api/v1/devices/${deviceId}`,
       { method: "DELETE" },
@@ -565,7 +541,6 @@ class AuthApiClient {
   }
 
   async addDevice(deviceName: string, platform: string): Promise<DeviceView> {
-    // Backend returns HTTP 201 with DeviceView body (not wrapped in {device: ...})
     return this.authRequest<DeviceView>(
       "/api/v1/devices",
       { method: "POST", body: JSON.stringify({ device_name: deviceName, platform }) },

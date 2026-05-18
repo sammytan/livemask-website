@@ -6,8 +6,8 @@ import type {
   TagsResponse,
   BlogQueryParams,
 } from "./blog-types";
+import { publicFetch } from "./http-client";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
 const MOCK_MODE =
   import.meta.env.VITE_API_MOCK_MODE !== "false" && import.meta.env.VITE_API_MOCK_MODE !== "0";
 
@@ -24,14 +24,9 @@ class BlogApiClient {
     if (this.mockMode) {
       return this.mockRequest<T>(path);
     }
-    const res = await fetch(`${API_BASE}${path}`, {
+    return publicFetch<T>(path, {
       headers: { Accept: "application/json" },
     });
-    if (!res.ok) {
-      if (res.status === 404) throw { status: 404, message: "Not found" };
-      throw { status: res.status, message: res.statusText };
-    }
-    return res.json();
   }
 
   async getArticles(params: BlogQueryParams = {}): Promise<ArticleListResponse> {
